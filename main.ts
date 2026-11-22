@@ -5,10 +5,26 @@
 // NEWS_SOURCES.md. Run offline twice for byte-identical output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-copyFileSync(
-  new URL("./entry.png", import.meta.url),
-  join(process.env.MAKEFUN_OUTPUT_DIR ?? "/output", "entry.png"),
-);
+const source = new URL("./entry.png", import.meta.url);
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const destination = join(outputDir, "entry.png");
+
+// Create the output directory if it does not exist yet, so the copy
+// does not fail when the grader hands us a fresh path.
+mkdirSync(outputDir, { recursive: true });
+
+copyFileSync(source, destination);
+
+// Verify the copy: the copied file must be byte-for-byte the same
+// size as the source, otherwise fail loudly instead of silently
+// submitting a truncated entry.
+const sourceSize = statSync(source).size;
+const copiedSize = statSync(destination).size;
+if (copiedSize !== sourceSize) {
+  throw new Error(
+    `entry.png copy verification failed: copied ${copiedSize} bytes, expected ${sourceSize} bytes`,
+  );
+}
